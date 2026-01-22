@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Redeem</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    input, button { width: 100%; padding: 10px; font-size: 16px; margin-top: 6px; }
+    button { cursor: pointer; }
+    .row { margin-top: 12px; }
+    .vlist { margin-top: 12px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+    .vitem { display:flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .vitem:last-child { border-bottom: none; }
+    .vmeta { font-size: 14px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #f7f7f7; padding: 12px; border-radius: 8px; }
+    .btns { display:flex; gap: 10px; margin-top: 12px; }
+    .btns button { width: 50%; }
+  </style>
+</head>
+<body>
+  <h2>Redeem vouchers</h2>
+
+  <label>Household ID</label>
+  <input id="hid" placeholder="e.g. H00000" value="">
+
+  <label>Merchant ID</label>
+  <input id="mid" placeholder="e.g. M00000" value="">
+
+  <label>Tranche ID</label>
+  <input id="tid" value="JAN2026">
+
+  <div class="btns">
+    <button id="loadBtn" type="button">Load available vouchers</button>
+    <button id="redeemBtn" type="button">Redeem selected</button>
+  </div>
+
+  <div class="row">
+    <h3>Available vouchers</h3>
+    <div id="vlist" class="vlist">No vouchers loaded.</div>
+  </div>
+
+  <div class="row">
+    <h3>Result</h3>
+    <pre id="out"></pre>
+  </div>
+
+  <script>
+    const vlistEl = document.getElementById("vlist");
+    const outEl = document.getElementById("out");
+
+    function renderVouchers(vouchers) {
+      if (!vouchers || vouchers.length === 0) {
+        vlistEl.innerHTML = "No available vouchers.";
+        return;
+      }
+
+      // sort by denomination
+      vouchers.sort((a,b) => a.denomination - b.denomination);
+
+      vlistEl.innerHTML = vouchers.map(v => `
+        <div class="vitem">
+          <input type="checkbox" class="vchk" value="${v.voucher_id}">
+          <div class="vmeta">
+            <div><b>$${v.denomination}</b> &nbsp; <span style="color:#666">${v.voucher_id}</span></div>
+            <div style="color:#666">Tranche: ${v.tranche_id || ""}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function loadVouchers() {
+      outEl.textContent = "";
+      const hid = document.getElementById("hid").value.trim();
+      const tranche_id = document.getElementById("tid").value.trim();
+
+      if (!hid) {
+        outEl.textContent = "Please enter Household ID first.";
+        return;
+      }
+
+      const url = `/api/households/${encodeURIComponent(hid)}/vouchers?tranche_id=${encodeURIComponent(tranche_id)}`;
+      const res = await fetch(url);
+      const text = await res.text();
+
+      if (!res.ok) {
+        outEl.textContent = `HTTP ${res.status}\n${text}`;
+        vlistEl.innerHTML = "No vouchers loaded.";
+        return;
+      }
+
+      const data = JSON.parse(text);
+      renderVouchers(data.vouchers);
+      outEl.textContent = `Loaded ${data.vouchers.length} available voucher(s).`;
+    }
+
+    async function redeemSelected() {
+      outEl.textContent = "";
+      const hid = document.getElementById("hid").value.trim();
+      const mid = document.getElementById("mid").value.trim();
+      const tranche_id = document.getElementById("tid").value.trim();
+
+      if (!hid || !mid) {
+        outEl.textContent = "Please enter Household ID and Merchant ID.";
+        return;
+      }
+
+      const checked = Array.from(document.querySelectorAll(".vchk:checked")).map(x => x.value);
+      if (checked.length === 0) {
+        outEl.textContent = "Please select at least 1 voucher.";
+        return;
+      }
+
+      const payload = { household_id: hid, merchant_id: mid, voucher_ids: checked, tranche_id };
+
+      const res = await fetch("/api/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      outEl.textContent = `HTTP ${res.status}\n${text}`;
+
+      // Automatically refresh the usable voucher list after redeem successfully
+      if (res.ok) {
+        await loadVouchers();
+      }
+    }
+
+    document.getElementById("loadBtn").addEventListener("click", loadVouchers);
+    document.getElementById("redeemBtn").addEventListener("click", redeemSelected);
+  </script>
+</body>
+</html>
