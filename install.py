@@ -74,9 +74,9 @@ vouchers = []
 
 for h in households:
     tranches.append({
-        "_id": f"{h['_id']}_JAN2025",
+        "_id": f"{h['_id']}_JAN2026",
         "household_id": h["_id"],
-        "tranche_id": "JAN2025",
+        "tranche_id": "JAN2026",
         "total_amount": 300,
         "vouchers": denoms
     })
@@ -86,7 +86,7 @@ for h in households:
             vouchers.append({
                 "_id": fake.uuid4(),
                 "household_id": h["_id"],
-                "tranche_id": "JAN2025",
+                "tranche_id": "JAN2026",
                 "denomination": int(denom),
                 "used": False
             })
