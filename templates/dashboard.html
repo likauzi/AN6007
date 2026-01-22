@@ -1,0 +1,8 @@
+<h2>Household Dashboard</h2>
+
+{% for h in households.values() %}
+<p>
+  {{h.household_id}} |
+  Tranches: {{ h.tranches.keys() }}
+</p>
+{% endfor %}
