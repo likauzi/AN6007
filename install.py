@@ -2,15 +2,39 @@ from pymongo import MongoClient
 from faker import Faker
 import random
 
-
 fake = Faker()
 client = MongoClient("mongodb://localhost:27017/")
 
-# Drop and recreate database
 client.drop_database("cdc_system")
 db = client["cdc_system"]
 
-# PostalDistrict (master data)
+# Banks
+banks = [
+    {"bank_code": "7171", "bank_name": "DBS Bank Ltd", "branch_code": "001",
+     "branch_name": "Main Branch", "swift_code": "DBSSSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7339", "bank_name": "OCBC Bank", "branch_code": "501",
+     "branch_name": "Tampines Branch", "swift_code": "OCBCSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7761", "bank_name": "UOB Bank", "branch_code": "001",
+     "branch_name": "Raffles Place", "swift_code": "UOVBSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7091", "bank_name": "Maybank Singapore", "branch_code": "001",
+     "branch_name": "Main Branch", "swift_code": "MBBESGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7302", "bank_name": "Standard Chartered Bank", "branch_code": "001",
+     "branch_name": "Main Branch", "swift_code": "SCBLSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7375", "bank_name": "HSBC Singapore", "branch_code": "146",
+     "branch_name": "Orchard Branch", "swift_code": "HSBCSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7171", "bank_name": "POSB Bank", "branch_code": "081",
+     "branch_name": "Toa Payoh Branch", "swift_code": "DBSSSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "9465", "bank_name": "Citibank Singapore", "branch_code": "001",
+     "branch_name": "Main Branch", "swift_code": "CITISGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7083", "bank_name": "RHB Bank Berhad", "branch_code": "001",
+     "branch_name": "Main Branch", "swift_code": "RHBBSGSG", "remarks": "FAST/GIRO Enabled"},
+    {"bank_code": "7012", "bank_name": "Bank of China Singapore", "branch_code": "001",
+     "branch_name": "Main Branch", "swift_code": "BKCHSGSG", "remarks": "FAST/GIRO Enabled"}
+]
+db.banks.insert_many(banks)
+bank_codes = list({b["bank_code"] for b in banks})
+
+# PostalDistrict
 postal_districts = []
 for i in range(1, 29):
     postal_districts.append({
@@ -27,31 +51,32 @@ for i in range(300):
     merchants.append({
         "_id": f"M{i:05}",
         "status": "active",
-        "district": d["district"]
+        "district": d["district"],
+        "bankcode": random.choice(bank_codes)
     })
 db.merchants.insert_many(merchants)
 
 # Households
 households = []
 for i in range(2000):
-    d = random.choice(postal_districts)
+    # postal code still generated, but no district field stored
     households.append({
         "_id": f"H{i:05}",
-        "postal_code": d["_id"] + fake.postcode()[2:]
+        "postal_code": fake.postcode()
     })
 db.households.insert_many(households)
 
 # Tranches & Vouchers
-denoms = {"2": 60, "5": 24, "10": 6}  # total = 300
+denoms = {"2": 60, "5": 24, "10": 6}
 
 tranches = []
 vouchers = []
 
 for h in households:
     tranches.append({
-        "_id": f"{h['_id']}_JAN2026",
+        "_id": f"{h['_id']}_JAN2025",
         "household_id": h["_id"],
-        "tranche_id": "JAN2026",
+        "tranche_id": "JAN2025",
         "total_amount": 300,
         "vouchers": denoms
     })
@@ -61,7 +86,7 @@ for h in households:
             vouchers.append({
                 "_id": fake.uuid4(),
                 "household_id": h["_id"],
-                "tranche_id": "JAN2026",
+                "tranche_id": "JAN2025",
                 "denomination": int(denom),
                 "used": False
             })
@@ -69,48 +94,11 @@ for h in households:
 db.tranches.insert_many(tranches)
 db.vouchers.insert_many(vouchers)
 
-# Transactions
-"""
-from datetime import datetime
-
-NUM_TX = 100
-
-unused_vouchers = list(db.vouchers.find({"used": False}))
-selected_vouchers = random.sample(unused_vouchers, NUM_TX)
-
-transactions = []
-
-for i, v in enumerate(selected_vouchers):
-    tx = {
-        "tx_id": f"TX2025_{i:05}",
-        "household_id": v["household_id"],
-        "merchant_id": random.choice(merchants)["_id"],
-        "voucher_id": v["_id"],
-        "amount": v["denomination"],
-        "timestamp": datetime(
-            year=2025, month=random.randint(1, 6),
-            day=random.randint(1, 28),
-            hour=random.randint(8, 22),
-            minute=random.randint(0, 59),
-            second=random.randint(0, 59)
-        ).strftime("%Y%m%d%H%M%S")
-    }
-
-    transactions.append(tx)
-
-    # Mark voucher as used
-    db.vouchers.update_one(
-        {"_id": v["_id"]},
-        {"$set": {"used": True}}
-    )
-
-db.transactions.insert_many(transactions)
-"""
-
-print("====== CDC Database Rebuilt (Merchant District Added) ======")
-print("households:", db.households.count_documents({}))
+print("====== CDC Database Rebuilt (Household district removed) ======")
+print("banks:", db.banks.count_documents({}))
 print("postaldistricts:", db.postaldistricts.count_documents({}))
 print("merchants:", db.merchants.count_documents({}))
+print("households:", db.households.count_documents({}))
 print("tranches:", db.tranches.count_documents({}))
 print("vouchers:", db.vouchers.count_documents({}))
 print("transactions: NOT USED")
