@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>My Vouchers</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; background:#fafafa; }
+    h2 { margin-top: 0; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    input, button { width: 100%; padding: 10px; font-size: 16px; margin-top: 6px; }
+    button { cursor: pointer; }
+    .cards { margin-top: 16px; display: grid; gap: 12px; }
+    .card { background: white; border: 1px solid #e6e6e6; border-radius: 12px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+    .top { display:flex; justify-content: space-between; align-items: baseline; }
+    .denom { font-size: 28px; font-weight: 800; }
+    .count { font-size: 16px; color:#555; }
+    .meta { margin-top: 8px; color:#666; font-size: 14px; }
+    .summary { margin-top: 16px; padding: 12px; background:#fff; border:1px solid #e6e6e6; border-radius: 12px; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h2>My Vouchers</h2>
+
+  <label>Household ID</label>
+  <input id="hid" placeholder="e.g. H00000" value="">
+
+  <label>Tranche ID</label>
+  <input id="tid" value="JAN2026">
+
+  <button id="btn">Check balance</button>
+
+  <div id="summary" class="summary" style="display:none;"></div>
+  <div id="cards" class="cards"></div>
+
+  <script>
+    const btn = document.getElementById("btn");
+    const cards = document.getElementById("cards");
+    const summaryEl = document.getElementById("summary");
+
+    function render(summaryData) {
+      const s = summaryData.summary || {};
+      const denoms = Object.keys(s).map(x => parseInt(x)).sort((a,b)=>a-b);
+
+      // summary box
+      summaryEl.style.display = "block";
+      summaryEl.innerHTML = `
+        <div><b>Total vouchers:</b> ${summaryData.total_vouchers}</div>
+        <div><b>Total amount:</b> $${summaryData.total_amount}</div>
+      `;
+
+      if (denoms.length === 0) {
+        cards.innerHTML = `<div class="card">No available vouchers.</div>`;
+        return;
+      }
+
+      cards.innerHTML = denoms.map(d => `
+        <div class="card">
+          <div class="top">
+            <div class="denom">$${d}</div>
+            <div class="count">${s[d]} voucher(s)</div>
+          </div>
+          <div class="meta">Tranche: ${summaryData.tranche_id || "All"}</div>
+        </div>
+      `).join("");
+    }
+
+    btn.addEventListener("click", async () => {
+      const hid = document.getElementById("hid").value.trim();
+      const tid = document.getElementById("tid").value.trim();
+
+      summaryEl.style.display = "none";
+      cards.innerHTML = "";
+
+      if (!hid) {
+        cards.innerHTML = `<div class="card">Please enter Household ID.</div>`;
+        return;
+      }
+
+      const url = `/api/households/${encodeURIComponent(hid)}/balance?mode=summary&tranche_id=${encodeURIComponent(tid)}`;
+      const res = await fetch(url);
+      const text = await res.text();
+
+      if (!res.ok) {
+        cards.innerHTML = `<div class="card"><pre>HTTP ${res.status}\n${text}</pre></div>`;
+        return;
+      }
+
+      const data = JSON.parse(text);
+      render(data);
+    });
+  </script>
+</body>
+</html>
