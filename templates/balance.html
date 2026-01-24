@@ -78,7 +78,7 @@
         return;
       }
 
-      const url = `/api/households/${encodeURIComponent(hid)}/balance?mode=summary&tranche_id=${encodeURIComponent(tid)}`;
+      const url = `/api/v1/households/${encodeURIComponent(hid)}/balance?mode=summary&tranche_id=${encodeURIComponent(tid)}`;
       const res = await fetch(url);
       const text = await res.text();
 

@@ -1,4 +1,4 @@
-<h2>Register Household</h2>
+<!-- <h2>Register Household</h2>
 <form action="/register" method="post">
   Household ID: <input name="hid"><br>
   Postal Code: <input name="postal"><br>
@@ -8,5 +8,17 @@
 <h2>Claim JAN2025 Voucher</h2>
 <form action="/claim" method="post">
   Household ID: <input name="hid"><br>
+  <button type="submit">Claim</button>
+</form> -->
+
+<h2>Register Household</h2>
+<form action="/api/register" method="post">
+  Postal Code: <input name="postal" required><br>
+  <button type="submit">Register</button>
+</form>
+
+<h2>Claim JAN2025 Voucher</h2>
+<form action="/api/claim" method="post">
+  Household ID: <input name="hid" required><br>
   <button type="submit">Claim</button>
 </form>

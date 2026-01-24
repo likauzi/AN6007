@@ -1,0 +1,75 @@
+Base URL
+
+所有接口都以这个开头：
+http://127.0.0.1:5000
+
+1) 注册家庭（系统自动分配 household_id）
+
+POST /api/v1/households
+作用： 用户输入 postal_code 后注册一个新家庭；后端自动生成 household_id 并返回给前端。
+前端用在： “注册页面”的提交按钮。
+
+2) 家庭领券（Claim tranche，默认 JAN2026）
+
+POST /api/v1/households/{household_id}/tranches
+作用： 给指定家庭发放一批券（一个 tranche，例如 JAN2026）；同时后台会生成该家庭的每一张 voucher 记录（每张券一个 voucher_id）。
+前端用在： “领券按钮”（需要先有 household_id）。
+
+
+3) 查询家庭基本信息
+
+GET /api/v1/households/{household_id}
+作用： 查询该家庭的基本信息（postal_code、已经领过哪些 tranche）。
+前端用在： profile 页面 / 查询页面（可选）。
+
+4) 查询可用券列表（未使用的 vouchers，用于核销选择）
+
+GET /api/v1/households/{household_id}/vouchers
+可选参数：?tranche_id=JAN2026
+作用： 返回该家庭当前所有“未使用”的券列表（包含每张券的 voucher_id 和面额 denomination），前端用它让用户勾选要核销哪些券。
+前端用在： “核销页面”加载券列表。
+
+示例：
+/api/v1/households/H02000/vouchers?tranche_id=JAN2026
+
+5) 查询余额（summary 汇总模式）
+
+GET /api/v1/households/{household_id}/balance?mode=summary
+可选参数：&tranche_id=JAN2026
+作用： 返回余额汇总：每种面额剩余多少张 + 总张数 + 总金额（例如 2元券60张、5元券24张、10元券6张，总额300）。
+前端用在： “余额页面”的主要展示。
+
+示例：
+/api/v1/households/H02000/balance?mode=summary&tranche_id=JAN2026
+
+6) 查询余额（list 列表模式）
+
+GET /api/v1/households/{household_id}/balance?mode=list
+可选参数：&tranche_id=JAN2026
+作用： 返回余额的“每张券列表”（本质上类似 vouchers 接口，但用于余额页要展示每张券明细时）。
+前端用在： 余额页面的明细展开（可选）。
+
+示例：
+/api/v1/households/H02000/balance?mode=list&tranche_id=JAN2026
+
+7) 核销（Redeem：一次交易可用多张券）
+
+POST /api/v1/redeem
+作用： 提交一次核销交易：前端传入 household_id、merchant_id、用户选择的 voucher_ids（数组），后端会把这些券标记为已使用，并返回交易结果（tx_id、total_amount 等），同时生成每小时一个 redemption CSV 文件。
+前端用在： “核销页面”的确认按钮。
+
+前端最简单的调用顺序（推荐流程）
+
+注册：POST /api/v1/households → 拿到 household_id
+
+领券：POST /api/v1/households/{hid}/tranches
+
+余额页：GET /api/v1/households/{hid}/balance?mode=summary&tranche_id=JAN2026
+
+核销页：
+
+先拉可用券：GET /api/v1/households/{hid}/vouchers?tranche_id=JAN2026
+
+用户勾选 voucher_ids
+
+再提交核销：POST /api/v1/redeem
